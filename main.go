@@ -1,46 +1,62 @@
 package main
 
 import (
-	"encoding/base64"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
 
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
-func redirectPolicyFunc(req *http.Request, via []*http.Request) error {
-	req.Header.Add("Authorization", "Basic "+basicAuth("username1", "password123"))
-	return nil
-}
-
 func main() {
-	url := "https://icanhazdadjoke.com/"
+	urlGet := "https://icanhazdadjoke.com/"
+	urlPost := "https://httpbin.org/post"
+	values := map[string]string{"name": "John Doe", "occupation": "gardener"}
 
-	client := &http.Client{
-		CheckRedirect: redirectPolicyFunc,
-	}
+	fmt.Println(sendGet(urlGet))
+	sendPost(values, urlPost)
 
-	resp, err := client.Get(url)
-	fmt.Println("\nAPI Joke1: ", resp)
+}
 
-	req, err := http.NewRequest("GET", url, nil)
-
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "Dadjoke CLI (github.com/yonathanavila)")
-
-	resp, err = client.Do(req)
+func sendGet(url string) string {
+	resp, err := http.Get(url)
 
 	if err != nil {
-		// handle error
-		log.Println("Ocurrio un error: ", err)
+		log.Fatal(err)
 	}
-	fmt.Println("\nAPI Joke2: ", resp)
 
 	defer resp.Body.Close()
 
-	fmt.Println("\nAPI Joke3: ", resp)
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(body))
+	return string(body)
+}
+
+func sendPost(data map[string]string, url string) {
+
+	json_data, err := json.Marshal(data)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resp, err := http.Post(url, "application/json",
+		bytes.NewBuffer(json_data))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var res map[string]interface{}
+
+	json.NewDecoder(resp.Body).Decode(&res)
+
+	fmt.Println(res["json"])
+
 }
